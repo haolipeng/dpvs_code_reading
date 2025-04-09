@@ -54,9 +54,6 @@
 #define DP_VS_SYNPROXY_SND_WSCALE_MASK  ((uint32_t)0xf << DP_VS_SYNPROXY_SND_WSCALE_BITS)
 #define DP_VS_SYNPROXY_WSCALE_MAX       14
 
-extern struct rte_mempool *dp_vs_synproxy_ack_mbufpool[DPVS_MAX_SOCKET];
-#define this_ack_mbufpool (dp_vs_synproxy_ack_mbufpool[rte_socket_id()])
-
 extern int dp_vs_synproxy_ctrl_conn_reuse;
 
 #ifdef CONFIG_SYNPROXY_DEBUG
@@ -85,44 +82,5 @@ struct dp_vs_synproxy_opt {
              sack_ok:1;     /* SACK seen on SYN packet */
     uint16_t mss_clamp;     /* Max mss, negotiated at connectons setup */
 } __rte_cache_aligned;
-
-/* synproxy(syncookies and one-minute-timer) init & cleanup */
-int dp_vs_synproxy_init(void);
-int dp_vs_synproxy_term(void);
-
-/* Syn-proxy step 1 logic: receive client's Syn. */
-int dp_vs_synproxy_syn_rcv(int af, struct rte_mbuf *mbuf,
-        const struct dp_vs_iphdr *iph, int *verdict);
-
-/* Syn-proxy step 2 logic: receive client's Ack */
-int dp_vs_synproxy_ack_rcv(int af, struct rte_mbuf *mbuf,
-        struct tcphdr *th, struct dp_vs_proto *pp,
-        struct dp_vs_conn **cpp,
-        const struct dp_vs_iphdr *iph, int *verdict);
-
-/* Syn-proxy step 3 logic: receive rs's Syn/Ack. */
-int dp_vs_synproxy_synack_rcv(struct rte_mbuf *mbuf, struct dp_vs_conn *cp,
-        struct dp_vs_proto *pp, int th_offset, int *verdict);
-
-/* Syn-proxy conn reuse logic: receive client's Ack */
-int dp_vs_synproxy_reuse_conn(int af, struct rte_mbuf *mbuf,
-        struct dp_vs_conn *cp,
-        struct dp_vs_proto *pp,
-        const struct dp_vs_iphdr *iph, int *verdict);
-
-/* Store or drop client's ack packet, when dpvs is waiting for rs's Syn/Ack packet */
-int dp_vs_synproxy_filter_ack(struct rte_mbuf *mbuf, struct dp_vs_conn *cp,
-        struct dp_vs_proto *pp,
-        const struct dp_vs_iphdr *iph, int *verdict);
-
-/* Transfer ack seq and sack opt for Out-In packet */
-void dp_vs_synproxy_dnat_handler(struct tcphdr *tcph, struct dp_vs_seq *sp_seq);
-
-/* Transer seq for In-Out packet */
-int dp_vs_synproxy_snat_handler(struct tcphdr *tcph, struct dp_vs_conn *cp);
-
-/* configuration file support */
-void synproxy_keyword_value_init(void);
-void install_synproxy_keywords(void);
 
 #endif

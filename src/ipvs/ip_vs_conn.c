@@ -624,7 +624,6 @@ static void dp_vs_conn_free_packets(struct dp_vs_conn *conn)
         list_del_init(&ack_mbuf->list);
         rte_pktmbuf_free(ack_mbuf->mbuf);
         sp_dbg_stats32_dec(sp_ack_saved);
-        rte_mempool_put(this_ack_mbufpool, ack_mbuf);
     }
 
     conn->ack_num = 0;
@@ -942,39 +941,6 @@ struct dp_vs_conn *dp_vs_conn_new(struct rte_mbuf *mbuf,
     INIT_LIST_HEAD(&new->ack_mbuf);
     rte_atomic32_set(&new->syn_retry_max, 0);
     rte_atomic32_set(&new->dup_ack_cnt, 0);
-
-    if ((flags & DPVS_CONN_F_SYNPROXY) && !dp_vs_conn_is_template(new)) {
-        struct tcphdr _tcph, *th = NULL;
-        struct dp_vs_synproxy_ack_pakcet *ack_mbuf;
-        struct dp_vs_proto *pp;
-
-        th = mbuf_header_pointer(mbuf, iph->len, sizeof(_tcph), &_tcph);
-        if (!th) {
-            RTE_LOG(ERR, IPVS, "%s: get tcphdr failed\n", __func__);
-            goto unbind_laddr;
-        }
-
-        /* save ack packet */
-        if (unlikely(rte_mempool_get(this_ack_mbufpool, (void **)&ack_mbuf) != 0)) {
-            RTE_LOG(ERR, IPVS, "%s: no memory\n", __func__);
-            goto unbind_laddr;
-        }
-        ack_mbuf->mbuf = mbuf;
-        list_add_tail(&ack_mbuf->list, &new->ack_mbuf);
-        new->ack_num++;
-        sp_dbg_stats32_inc(sp_ack_saved);
-
-        /* save ack_seq - 1 */
-        new->syn_proxy_seq.isn =
-            htonl((uint32_t) ((ntohl(th->ack_seq) - 1)));
-
-        /* save ack_seq */
-        new->fnat_seq.fdata_seq = ntohl(th->ack_seq);
-
-        /* FIXME: use DP_VS_TCP_S_SYN_SENT for syn */
-        pp = dp_vs_proto_lookup(param->proto);
-        new->timeout.tv_sec = pp->timeout_table[new->state = DPVS_TCP_S_SYN_SENT];
-    }
 
     /* schedule conn timer */
 #ifdef CONFIG_TIMER_DEBUG

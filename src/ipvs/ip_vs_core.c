@@ -85,7 +85,7 @@ static struct dp_vs_conn *dp_vs_sched_persist(struct dp_vs_service *svc,
 
     assert(svc && iph && mbuf);
 
-    conn_flags = (is_synproxy_on ? DPVS_CONN_F_SYNPROXY : 0);
+    conn_flags = 0;
     if (svc->flags | DP_VS_SVC_F_EXPIRE_QUIESCENT)
         conn_flags |= DPVS_CONN_F_EXPIRE_QUIESCENT;
 
@@ -339,8 +339,6 @@ struct dp_vs_conn *dp_vs_schedule(struct dp_vs_service *svc,
                               ports[0], ports[1], 0, &param);
     }
 
-    if (is_synproxy_on)
-        flags |= DPVS_CONN_F_SYNPROXY;
     if (svc->flags & DP_VS_SVC_F_ONEPACKET && iph->proto == IPPROTO_UDP)
         flags |= DPVS_CONN_F_ONE_PACKET;
     if (svc->flags & DP_VS_SVC_F_EXPIRE_QUIESCENT)
@@ -1025,39 +1023,6 @@ static int __dp_vs_in(void *priv, struct rte_mbuf *mbuf,
         }
     }
 
-    if (conn->flags & DPVS_CONN_F_SYNPROXY) {
-        if (dir == DPVS_CONN_DIR_INBOUND) {
-            /* Filter out-in ack packet when cp is at SYN_SENT state.
-             * Drop it if not a valid packet, store it otherwise */
-            if (0 == dp_vs_synproxy_filter_ack(mbuf, conn, prot,
-                                               &iph, &verdict)) {
-                dp_vs_stats_in(conn, mbuf);
-                dp_vs_conn_put(conn);
-                return verdict;
-            }
-
-            /* "Reuse" synproxy sessions.
-             * "Reuse" means update syn_proxy_seq struct
-             * and clean ack_mbuf etc. */
-            if (0 != dp_vs_synproxy_ctrl_conn_reuse) {
-                if (0 == dp_vs_synproxy_reuse_conn(af, mbuf, conn, prot,
-                                                   &iph, &verdict)) {
-                    dp_vs_stats_in(conn, mbuf);
-                    dp_vs_conn_put(conn);
-                    return verdict;
-                }
-            }
-        } else {
-            /* Syn-proxy 3 logic: receive syn-ack from rs */
-            if (dp_vs_synproxy_synack_rcv(mbuf, conn, prot,
-                                          iph.len, &verdict) == 0) {
-                dp_vs_stats_out(conn, mbuf);
-                dp_vs_conn_put(conn);
-                return verdict;
-            }
-        }
-    }
-
     if (prot->state_trans) {
         err = prot->state_trans(prot, conn, mbuf, dir);
         if (err != EDPVS_OK)
@@ -1107,13 +1072,6 @@ static int __dp_vs_pre_routing(void *priv, struct rte_mbuf *mbuf,
                 return INET_DROP;
             }
         }
-    }
-
-    /* Synproxy: defence synflood */
-    if (IPPROTO_TCP == iph.proto) {
-        int v = INET_ACCEPT;
-        if (0 == dp_vs_synproxy_syn_rcv(af, mbuf, &iph, &v))
-            return v;
     }
 
     return INET_ACCEPT;
@@ -1186,12 +1144,6 @@ int dp_vs_init(void)
         goto err_redirect;
     }
 
-    err = dp_vs_synproxy_init();
-    if (err != EDPVS_OK) {
-        RTE_LOG(ERR, IPVS, "fail to init synproxy: %s\n", dpvs_strerror(err));
-        goto err_synproxy;
-    }
-
     err = dp_vs_sched_init();
     if (err != EDPVS_OK) {
         RTE_LOG(ERR, IPVS, "fail to init sched: %s\n", dpvs_strerror(err));
@@ -1242,8 +1194,6 @@ err_blklst:
 err_serv:
     dp_vs_sched_term();
 err_sched:
-    dp_vs_synproxy_term();
-err_synproxy:
     dp_vs_redirects_term();
 err_redirect:
     dp_vs_conn_term();
@@ -1282,10 +1232,6 @@ int dp_vs_term(void)
     err = dp_vs_sched_term();
     if (err != EDPVS_OK)
         RTE_LOG(ERR, IPVS, "fail to terminate sched: %s\n", dpvs_strerror(err));
-
-    err = dp_vs_synproxy_term();
-    if (err != EDPVS_OK)
-        RTE_LOG(ERR, IPVS, "fail to terminate synproxy: %s\n", dpvs_strerror(err));
 
     err = dp_vs_redirects_term();
     if (err != EDPVS_OK)

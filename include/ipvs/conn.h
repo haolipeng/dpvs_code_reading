@@ -39,7 +39,6 @@ enum {
  * DPVS_CONN_F_XXX should always be the same with IP_VS_CONN_F_XXX.
  */
 /* Conn flags used by both DPVS and Keepalived*/
-#define DPVS_CONN_F_SYNPROXY                IP_VS_CONN_F_SYNPROXY
 #define DPVS_CONN_F_EXPIRE_QUIESCENT        IP_VS_CONN_F_EXPIRE_QUIESCENT
 /* Conn flags used by DPVS only */
 #define DPVS_CONN_F_HASHED                  IP_VS_CONN_F_HASHED

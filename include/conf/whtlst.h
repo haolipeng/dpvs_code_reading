@@ -23,7 +23,6 @@
 #define __DPVS_WHTLST_CONF_H__
 #include "inet.h"
 #include "conf/sockopts.h"
-#include "conf/ipset.h"
 
 struct dp_vs_whtlst_entry {
     union inet_addr addr;

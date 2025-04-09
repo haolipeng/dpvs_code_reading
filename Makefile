@@ -23,7 +23,7 @@ CC 		= gcc
 LD 		= ld
 RM		= rm
 
-SUBDIRS = src tools
+SUBDIRS = src
 
 INSDIR  = $(PWD)/bin
 export INSDIR
@@ -37,11 +37,6 @@ all:
 
 clean:
 	for i in $(SUBDIRS); do $(MAKE) -C $$i clean || exit 1; done
-
-distclean:
-	$(MAKE) -C tools/keepalived distclean || true
-	-rm -f tools/keepalived/configure
-	-rm -f tools/keepalived/Makefile
 
 install:all
 	-mkdir -p $(INSDIR)

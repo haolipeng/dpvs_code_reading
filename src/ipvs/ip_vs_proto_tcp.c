@@ -262,8 +262,6 @@ void tcp_in_adjust_seq(struct dp_vs_conn *conn, struct tcphdr *th)
 {
     th->seq = htonl(ntohl(th->seq) + conn->fnat_seq.delta);
     /* recalc checksum later */
-    /* adjust ack_seq for synproxy,including tcp hdr and sack opt */
-    dp_vs_synproxy_dnat_handler(th, &conn->syn_proxy_seq);
     return;
 }
 
@@ -670,11 +668,6 @@ static int tcp_out_adjust_seq(struct dp_vs_conn *conn, struct tcphdr *tcph)
     uint8_t *ptr;
     int length;
 
-    /* synproxy seq change, including tcp hdr and check ack storm */
-    if (dp_vs_synproxy_snat_handler(tcph, conn) == 0) {
-        return EDPVS_OK; // ACK storm found
-    }
-
     /* adjust ack sequence */
     tcph->ack_seq = htonl(ntohl(tcph->ack_seq) - conn->fnat_seq.delta);
 
@@ -754,15 +747,6 @@ static int tcp_conn_sched(struct dp_vs_proto *proto,
     if (unlikely(!th)) {
         *verdict = INET_DROP;
         return EDPVS_INVPKT;
-    }
-
-    /* Syn-proxy step 2 logic: receive client's 3-handshake ack packet */
-    /* When synproxy disabled, only SYN packets can arrive here.
-     * So don't judge SYNPROXY flag here! If SYNPROXY flag judged, and syn_proxy
-     * got disbled and keepalived reloaded, SYN packets for RS may never be sent. */
-    if (dp_vs_synproxy_ack_rcv(iph->af, mbuf, th, proto, conn, iph, verdict) == 0) {
-        /* Attention: First ACK packet is also stored in conn->ack_mbuf */
-        return EDPVS_PKTSTOLEN;
     }
 
     /* only TCP-SYN without other flag can be scheduled */

@@ -24,7 +24,6 @@
 
 #include "inet.h"
 #include "conf/sockopts.h"
-#include "conf/ipset.h"
 
 struct dp_vs_blklst_entry {
     union inet_addr addr;
