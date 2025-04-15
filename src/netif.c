@@ -1173,6 +1173,7 @@ static struct pkt_type *pkt_type_get(__be16 type, struct netif_port *port)
     struct pkt_type *pt;
     int hash;
 
+    
     hash = pkt_type_tab_hashkey(type);
     list_for_each_entry(pt, &pkt_type_tab[hash], list) {
         if (pt->type == type && ((pt->port == NULL) || pt->port == port)) {

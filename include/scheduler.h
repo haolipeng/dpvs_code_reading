@@ -30,10 +30,10 @@
 #endif
 
 typedef enum dpvs_lcore_job_type {
-    LCORE_JOB_INIT,
-    LCORE_JOB_LOOP,
-    LCORE_JOB_SLOW,
-    LCORE_JOB_TYPE_MAX
+    LCORE_JOB_INIT,//初始化任务：在应用程序启动时执行一次的任务
+    LCORE_JOB_LOOP,//循环任务：需要每个循环都执行的任务
+    LCORE_JOB_SLOW,//慢速任务：需要定期执行但不需要每个循环都频繁执行的任务
+    LCORE_JOB_TYPE_MAX//任务类型的最大值，用于边界检查
 } dpvs_lcore_job_t;
 
 typedef void (*job_pt)(void *arg);
