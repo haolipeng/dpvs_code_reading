@@ -2364,7 +2364,6 @@ int netif_hard_xmit(struct rte_mbuf *mbuf, struct netif_port *dev)
 
 int netif_xmit(struct rte_mbuf *mbuf, struct netif_port *dev)
 {
-    int ret = EDPVS_OK;
     uint16_t mbuf_refcnt;
 
     if (unlikely(NULL == mbuf || NULL == dev)) {
@@ -2379,12 +2378,6 @@ int netif_xmit(struct rte_mbuf *mbuf, struct netif_port *dev)
     /* assert for possible double free */
     mbuf_refcnt = rte_mbuf_refcnt_read(mbuf);
     assert((mbuf_refcnt >= 1) && (mbuf_refcnt <= 64));
-
-    if (dev->flag & NETIF_PORT_FLAG_TC_EGRESS) {
-        mbuf = tc_hook(netif_tc(dev), mbuf, TC_HOOK_EGRESS, &ret);
-        if (!mbuf)
-            return ret;
-    }
 
     return netif_hard_xmit(mbuf, dev);
 }
@@ -2420,7 +2413,6 @@ int netif_rcv(struct netif_port *dev, __be16 eth_type, struct rte_mbuf *mbuf)
 static int netif_deliver_mbuf(struct netif_port *dev, lcoreid_t cid,
                   struct rte_mbuf *mbuf, bool pkts_from_ring)
 {
-    int ret = EDPVS_OK;
     struct rte_ether_hdr *eth_hdr;
 
     assert(mbuf->port <= NETIF_MAX_PORTS);
@@ -2443,12 +2435,6 @@ static int netif_deliver_mbuf(struct netif_port *dev, lcoreid_t cid,
             kni_ingress(mbuf_copied, dev);
         else
             RTE_LOG(WARNING, NETIF, "%s: failed to copy mbuf for kni\n", __func__);
-    }
-
-    if (!pkts_from_ring && (dev->flag & NETIF_PORT_FLAG_TC_INGRESS)) {
-        mbuf = tc_hook(netif_tc(dev), mbuf, TC_HOOK_INGRESS, &ret);
-        if (!mbuf)
-            return ret;
     }
 
     return netif_rcv_mbuf(dev, cid, mbuf, pkts_from_ring);
@@ -3376,12 +3362,6 @@ struct netif_port *netif_alloc(portid_t id, size_t priv_size, const char *namefm
     for (ii = 0; ii < DPVS_MAX_LCORE; ii++) {
         INIT_LIST_HEAD(&dev->in_ptr->ifa_list[ii]);
         INIT_LIST_HEAD(&dev->in_ptr->ifm_list[ii]);
-    }
-
-    if (tc_init_dev(dev) != EDPVS_OK) {
-        RTE_LOG(ERR, NETIF, "%s: fail to init TC\n", __func__);
-        rte_free(dev);
-        return NULL;
     }
 
     return dev;

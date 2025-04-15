@@ -19,7 +19,6 @@
 #define __DPVS_WHTLST_H__
 #include "conf/common.h"
 #include "ipvs/service.h"
-#include "ipset/ipset.h"
 
 struct whtlst_entry {
     struct list_head    list;

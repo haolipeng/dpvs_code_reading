@@ -245,22 +245,7 @@ static int dp_vs_whtlst_add_lcore(const struct dp_vs_whtlst_conf *conf)
     new->af    = conf->af;
 
     if (is_ipset) {
-        new->set = ipset_get(conf->ipset);
-        if (!new->set) {
-            RTE_LOG(ERR, SERVICE, "[%2d] %s: ipset %s not found\n",
-                    rte_lcore_id(), __func__, conf->ipset);
-            rte_free(new);
-            return EDPVS_INVAL;
-        }
-        // Notes: Reassess it when new ipset types added!
-        if (!strcmp(new->set->type->name, "hash:ip,port,net") ||
-                !strcmp(new->set->type->name, "hash:ip,port,ip") ||
-                !strcmp(new->set->type->name, "hash:net,port,net"))
-            new->dst_match = true;
-        else
-            new->dst_match = false;
-        list_add(&new->list, &this_whtlst_ipset_tab[hashkey]);
-        ++this_num_whtlsts_ipset;
+        
     } else {
         new->subject = conf->subject;
         list_add(&new->list, &this_whtlst_tab[hashkey]);

@@ -26,12 +26,6 @@
 
 #include <linux/pkt_sched.h>
 #include "conf/sockopts.h"
-#include "tc/tc.h"
-#include "tc/sch.h"
-#include "tc/cls.h"
-
-#define TC_F_OPS_STATS    0x0001
-#define TC_F_OPS_VERBOSE  0x0002
 
 typedef enum {
     TC_OBJ_QSCH,

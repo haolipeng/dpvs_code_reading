@@ -20,7 +20,6 @@
 #include "conf/common.h"
 #include "timer.h"
 #include "ipvs/service.h"
-#include "ipset/ipset.h"
 
 struct blklst_entry {
     struct list_head    list;

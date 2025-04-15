@@ -39,10 +39,8 @@
 #include "ipv4.h"
 #include "neigh.h"
 #include "sa_pool.h"
-#include "ipset/ipset.h"
 #include "ipvs/ipvs.h"
 #include "cfgfile.h"
-#include "ip_tunnel.h"
 #include "sys_time.h"
 #include "route6.h"
 #include "iftraf.h"
@@ -81,24 +79,16 @@ static void inline dpdk_version_check(void)
                     netif_vdevs_add,     NULL),                 \
         DPVS_MODULE(MODULE_TIMER,       "timer",                \
                     dpvs_timer_init,     dpvs_timer_term),      \
-        DPVS_MODULE(MODULE_TC,          "tc",                   \
-                    tc_init,             tc_term),              \
         DPVS_MODULE(MODULE_NETIF,       "netif",                \
                     netif_init,          netif_term),           \
         DPVS_MODULE(MODULE_CTRL,        "ctrl",                 \
                     ctrl_init,           ctrl_term),            \
-        DPVS_MODULE(MODULE_TC_CTRL,     "tc_ctrl",              \
-                    tc_ctrl_init,        tc_ctrl_term),         \
         DPVS_MODULE(MODULE_VLAN,        "vlan",                 \
                     vlan_init,           NULL),                 \
         DPVS_MODULE(MODULE_INET,        "inet",                 \
                     inet_init,           inet_term),            \
         DPVS_MODULE(MODULE_SA_POOL,     "sa_pool",              \
                     sa_pool_init,        sa_pool_term),         \
-        DPVS_MODULE(MODULE_IP_TUNNEL,   "tunnel",               \
-                    ip_tunnel_init,      ip_tunnel_term),       \
-        DPVS_MODULE(MODULE_IPSET,       "ipset",                \
-                    ipset_init,          ipset_term),           \
         DPVS_MODULE(MODULE_VS,          "ipvs",                 \
                     dp_vs_init,          dp_vs_term),           \
         DPVS_MODULE(MODULE_NETIF_CTRL,  "netif ctrl",           \

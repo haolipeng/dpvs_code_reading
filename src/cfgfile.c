@@ -53,7 +53,6 @@ static void keyword_value_init(void)
     ipvs_conn_keyword_value_init();
     udp_keyword_value_init();
     tcp_keyword_value_init();
-    synproxy_keyword_value_init();
 
     ipv6_keyword_value_init();
 }
@@ -72,8 +71,6 @@ static vector_t install_keywords(void)
     install_ipv4_keywords();
     install_ip4_frag_keywords();
 
-    install_ipset_hash_keywords();
-
     install_control_keywords();
 
     install_keyword_root("ipvs_defs", NULL);
@@ -83,7 +80,6 @@ static vector_t install_keywords(void)
     install_keyword("tcp", NULL, KW_TYPE_NORMAL);
     install_sublevel();
     install_proto_tcp_keywords();
-    install_synproxy_keywords();
     install_sublevel_end();
 
     install_keyword("udp", NULL, KW_TYPE_NORMAL);
