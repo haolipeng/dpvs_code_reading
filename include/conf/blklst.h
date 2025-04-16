@@ -38,7 +38,6 @@ typedef struct dp_vs_blklst_conf {
 
     /* subject and ipset are mutual exclusive */
     union inet_addr     subject;
-    char                ipset[IPSET_MAXNAMELEN];
 } dpvs_blklst_t;
 
 struct dp_vs_blklst_conf_array {

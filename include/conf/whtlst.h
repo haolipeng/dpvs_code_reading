@@ -37,7 +37,6 @@ typedef struct dp_vs_whtlst_conf {
 
     /* subject and ipset are mutual exclusive */
     union inet_addr     subject;
-    char                ipset[IPSET_MAXNAMELEN];
 } dpvs_whtlst_t;
 
 struct dp_vs_whtlst_conf_array {

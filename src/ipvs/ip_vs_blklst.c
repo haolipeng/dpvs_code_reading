@@ -64,8 +64,6 @@ static inline void blklst_fill_conf(const struct blklst_entry *entry,
     conf->proto = entry->proto;
     conf->af    = entry->af;
     conf->subject = entry->subject;
-    if (entry->set)
-        strncpy(conf->ipset, entry->set->name, sizeof(conf->ipset) - 1);
 }
 
 static inline uint32_t blklst_hashkey(const union inet_addr *vaddr,
@@ -99,58 +97,13 @@ static inline struct blklst_entry *dp_vs_blklst_ip_lookup(
     return NULL;
 }
 
-static inline struct blklst_entry *dp_vs_blklst_ipset_lookup(
-        int af, uint8_t proto, const union inet_addr *vaddr,
-        uint16_t vport, const char *ipset)
-{
-    unsigned hashkey;
-    struct blklst_entry *entry;
-
-    hashkey = blklst_hashkey(vaddr, vport, NULL, true);
-    list_for_each_entry(entry, &this_blklst_ipset_tab[hashkey], list) {
-        if (entry->af == af && entry->proto == proto && entry->vport == vport &&
-                inet_addr_equal(af, &entry->vaddr, vaddr) &&
-                !strncmp(entry->set->name, ipset, sizeof(entry->set->name)))
-            return entry;
-    }
-
-    return NULL;
-}
-
-static bool dp_vs_blklst_ip_match_set(int af, uint8_t proto,
-        const union inet_addr *vaddr, uint16_t vport,
-        struct rte_mbuf *mbuf)
-{
-    bool res = false;
-    unsigned hashkey;
-    struct blklst_entry *entry;
-
-    hashkey = blklst_hashkey(vaddr, vport, NULL, true);
-    list_for_each_entry(entry, &this_blklst_ipset_tab[hashkey], list) {
-        if (entry->af == af && entry->proto == proto &&
-                entry->vport == vport &&
-                inet_addr_equal(af, &entry->vaddr, vaddr)) {
-            rte_pktmbuf_prepend(mbuf, mbuf->l2_len);
-            res = elem_in_set(entry->set, mbuf, entry->dst_match);
-            rte_pktmbuf_adj(mbuf, mbuf->l2_len);
-            if (res)
-                break;
-        }
-    }
-    return res;
-}
-
 static struct blklst_entry *dp_vs_blklst_lookup(const struct dp_vs_blklst_conf *conf)
 {
     struct blklst_entry *entry;
 
     entry = dp_vs_blklst_ip_lookup(conf->af, conf->proto, &conf->vaddr, conf->vport,
             &conf->subject);
-    if (entry)
-        return entry;
-
-    return dp_vs_blklst_ipset_lookup(conf->af, conf->proto, &conf->vaddr, conf->vport,
-            conf->ipset);
+    return entry;
 }
 
 bool dp_vs_blklst_filtered(int af, uint8_t proto, const union inet_addr *vaddr,
@@ -158,20 +111,18 @@ bool dp_vs_blklst_filtered(int af, uint8_t proto, const union inet_addr *vaddr,
 {
     if (dp_vs_blklst_ip_lookup(af, proto, vaddr, vport, subject))
         return true;
-
-    return dp_vs_blklst_ip_match_set(af, proto, vaddr, vport, mbuf);
+    return false;
 }
 
 static int dp_vs_blklst_add_lcore(const struct dp_vs_blklst_conf *conf)
 {
     unsigned hashkey;
     struct blklst_entry *new;
-    bool is_ipset = conf->ipset[0] != '\0';
 
     if (dp_vs_blklst_lookup(conf))
         return EDPVS_EXIST;
 
-    hashkey = blklst_hashkey(&conf->vaddr, conf->vport, &conf->subject, is_ipset);
+    hashkey = blklst_hashkey(&conf->vaddr, conf->vport, &conf->subject, false);
 
     new = rte_zmalloc("new_blklst_entry", sizeof(struct blklst_entry), 0);
     if (unlikely(new == NULL))
@@ -182,13 +133,9 @@ static int dp_vs_blklst_add_lcore(const struct dp_vs_blklst_conf *conf)
     new->proto = conf->proto;
     new->af    = conf->af;
 
-    if (is_ipset) {
-        
-    } else {
-        new->subject = conf->subject;
-        list_add(&new->list, &this_blklst_tab[hashkey]);
-        ++this_num_blklsts;
-    }
+    new->subject = conf->subject;
+    list_add(&new->list, &this_blklst_tab[hashkey]);
+    ++this_num_blklsts;
 
     return EDPVS_OK;
 }
@@ -203,7 +150,6 @@ static int dp_vs_blklst_del_lcore(const struct dp_vs_blklst_conf *conf)
 
     if (entry->set) {   /* ipset entry */
         list_del(&entry->list);
-        ipset_put(entry->set);
         --this_num_blklsts_ipset;
     } else {            /* ip entry */
         list_del(&entry->list);

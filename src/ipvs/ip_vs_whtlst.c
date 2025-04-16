@@ -64,18 +64,12 @@ static inline void whtlst_fill_conf(const struct whtlst_entry *entry,
     conf->proto   = entry->proto;
     conf->af      = entry->af;
     conf->subject = entry->subject;
-    if (entry->set)
-        strncpy(conf->ipset, entry->set->name, sizeof(conf->ipset) - 1);
 }
 
 static inline uint32_t whtlst_hashkey(const union inet_addr *vaddr,
         uint16_t vport, bool ipset)
 {
     /* jhash hurts performance, we do not use rte_jhash_2words here */
-    if (ipset)
-        return ((((vaddr->in.s_addr * 31) ^ vport) * 131)
-                ^ dp_vs_whtlst_rnd) & DPVS_WHTLST_IPSET_TAB_MASK;
-
     return ((((vaddr->in.s_addr * 31) ^ vport) * 131)
             ^ dp_vs_whtlst_rnd) & DPVS_WHTLST_TAB_MASK;
 }
@@ -98,35 +92,13 @@ static inline struct whtlst_entry *dp_vs_whtlst_ip_lookup(
     return NULL;
 }
 
-static inline struct whtlst_entry *dp_vs_whtlst_ipset_lookup(
-        int af, uint8_t proto, const union inet_addr *vaddr,
-        uint16_t vport, const char *ipset)
-{
-    unsigned hashkey;
-    struct whtlst_entry *entry;
-
-    hashkey = whtlst_hashkey(vaddr, vport, true);
-    list_for_each_entry(entry, &this_whtlst_ipset_tab[hashkey], list) {
-        if (entry->af == af && entry->proto == proto && entry->vport == vport &&
-                inet_addr_equal(af, &entry->vaddr, vaddr) &&
-                !strncmp(entry->set->name, ipset, sizeof(entry->set->name)))
-            return entry;
-    }
-
-    return NULL;
-}
-
 static struct whtlst_entry *dp_vs_whtlst_lookup(const struct dp_vs_whtlst_conf *conf)
 {
     struct whtlst_entry *entry;
 
     entry = dp_vs_whtlst_ip_lookup(conf->af, conf->proto, &conf->vaddr, conf->vport,
             &conf->subject);
-    if (entry)
-        return entry;
-
-    return dp_vs_whtlst_ipset_lookup(conf->af, conf->proto, &conf->vaddr, conf->vport,
-            conf->ipset);
+    return entry;
 }
 
 enum dpvs_whtlst_result {
@@ -165,37 +137,6 @@ static inline enum dpvs_whtlst_result dp_vs_whtlst_iplist_acl (
     return DPVS_WHTLST_DENIED;
 }
 
-static enum dpvs_whtlst_result dp_vs_whtlst_ipset_acl(int af, uint8_t proto,
-        const union inet_addr  *vaddr, uint16_t vport, struct rte_mbuf *mbuf)
-{
-    bool set, hit;
-    unsigned hashkey;
-    struct whtlst_entry *entry;
-
-    set = false;
-    hit = false;
-
-    hashkey = whtlst_hashkey(vaddr, vport, true);
-    list_for_each_entry(entry, &this_whtlst_ipset_tab[hashkey], list) {
-        if (entry->af == af && entry->proto == proto &&
-                entry->vport == vport &&
-                inet_addr_equal(af, &entry->vaddr, vaddr)) {
-            set = true;
-            rte_pktmbuf_prepend(mbuf, mbuf->l2_len);
-            hit = elem_in_set(entry->set, mbuf, entry->dst_match);
-            rte_pktmbuf_adj(mbuf, mbuf->l2_len);
-            if (hit)
-                break;
-        }
-    }
-
-    if (!set)
-        return DPVS_WHTLST_UNSET;
-    if (hit)
-        return DPVS_WHTLST_ALLOWED;
-    return DPVS_WHTLST_DENIED;
-}
-
 bool dp_vs_whtlst_filtered(int af, uint8_t proto, const union inet_addr *vaddr,
         uint16_t vport, const union inet_addr *subject, struct rte_mbuf *mbuf)
 {
@@ -215,25 +156,23 @@ bool dp_vs_whtlst_filtered(int af, uint8_t proto, const union inet_addr *vaddr,
      * - If a client is allowed in either iplist or ipset, but denied in
      *   the other, then the client is allowed.
      */
-    enum dpvs_whtlst_result res1, res2;
+    enum dpvs_whtlst_result res1;
 
     res1 = dp_vs_whtlst_iplist_acl(af, proto, vaddr, vport, subject);
-    res2 = dp_vs_whtlst_ipset_acl(af, proto, vaddr, vport, mbuf);
 
-    return !((DPVS_WHTLST_ALLOWED == res1) || ( DPVS_WHTLST_ALLOWED == res2)
-        || ((DPVS_WHTLST_UNSET == res1) && (DPVS_WHTLST_UNSET == res2)));
+    return !(DPVS_WHTLST_ALLOWED == res1)
+        || (DPVS_WHTLST_UNSET == res1);
 }
 
 static int dp_vs_whtlst_add_lcore(const struct dp_vs_whtlst_conf *conf)
 {
     unsigned hashkey;
     struct whtlst_entry *new;
-    bool is_ipset = conf->ipset[0] != '\0';
 
     if (dp_vs_whtlst_lookup(conf))
         return EDPVS_EXIST;
 
-    hashkey = whtlst_hashkey(&conf->vaddr, conf->vport, is_ipset);
+    hashkey = whtlst_hashkey(&conf->vaddr, conf->vport, false);
 
     new = rte_zmalloc("new_whtlst_entry", sizeof(struct whtlst_entry), 0);
     if (unlikely(new == NULL))
@@ -244,13 +183,9 @@ static int dp_vs_whtlst_add_lcore(const struct dp_vs_whtlst_conf *conf)
     new->proto = conf->proto;
     new->af    = conf->af;
 
-    if (is_ipset) {
-        
-    } else {
-        new->subject = conf->subject;
-        list_add(&new->list, &this_whtlst_tab[hashkey]);
-        ++this_num_whtlsts;
-    }
+    new->subject = conf->subject;
+    list_add(&new->list, &this_whtlst_tab[hashkey]);
+    ++this_num_whtlsts;
 
     return EDPVS_OK;
 }
@@ -265,7 +200,6 @@ static int dp_vs_whtlst_del_lcore(const  struct dp_vs_whtlst_conf *conf)
 
     if (entry->set) {   /* ipset entry */
         list_del(&entry->list);
-        ipset_put(entry->set);
         --this_num_whtlsts_ipset;
     } else {
         list_del(&entry->list);
