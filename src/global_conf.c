@@ -20,7 +20,6 @@
 #include "global_conf.h"
 #include "global_data.h"
 #include "log.h"
-#include "lldp.h"
 
 bool g_dpvs_pdump = false;
 
@@ -108,7 +107,6 @@ static void global_defs_handler(vector_t tokens)
 {
     // initilize config to default value
     g_dpvs_log_tslen = 0;
-    dpvs_lldp_disable();
 }
 
 static void log_level_handler(vector_t tokens)
@@ -197,22 +195,6 @@ static void kni_handler(vector_t tokens)
     FREE_PTR(str);
 }
 
-static void lldp_handler(vector_t tokens)
-{
-    char *str = set_value(tokens);
-    assert(str);
-    if (strcasecmp(str, "on") == 0)
-        dpvs_lldp_enable();
-    else if (strcasecmp(str, "off") == 0)
-        dpvs_lldp_disable();
-    else
-        RTE_LOG(WARNING, CFG_FILE, "invalid lldp config: %s\n", str);
-
-    RTE_LOG(INFO, CFG_FILE, "lldp = %s\n", dpvs_lldp_is_enabled() ? "on" : "off");
-
-    FREE_PTR(str);
-}
-
 #ifdef CONFIG_DPVS_PDUMP
 static void pdump_handler(vector_t tokens)
 {
@@ -240,7 +222,6 @@ void install_global_keywords(void)
     install_keyword("log_with_timestamp", log_with_timestamp_handler, KW_TYPE_NORMAL);
     install_keyword("log_async_pool_size", log_async_pool_size_handler, KW_TYPE_INIT);
     install_keyword("kni", kni_handler, KW_TYPE_INIT);
-    install_keyword("lldp", lldp_handler, KW_TYPE_NORMAL);
 #ifdef CONFIG_DPVS_PDUMP
     install_keyword("pdump", pdump_handler, KW_TYPE_INIT);
 #endif

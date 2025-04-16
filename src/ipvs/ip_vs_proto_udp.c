@@ -26,7 +26,6 @@
 #include "ipvs/ipvs.h"
 #include "ipvs/proto.h"
 #include "ipvs/proto_udp.h"
-#include "ipvs/quic.h"
 #include "ipvs/conn.h"
 #include "ipvs/service.h"
 #include "ipvs/blklst.h"
@@ -176,25 +175,6 @@ static int udp_conn_sched(struct dp_vs_proto *proto,
 
     /* schedule RS and create new connection */
     *conn = NULL;
-    if (svc->flags & DP_VS_SVC_F_QUIC) { // deal with quic conn migration
-        struct quic_server qsvr = { 0 };
-        int err = quic_parse_server(mbuf, iph, &qsvr);
-        if (likely(err == EDPVS_OK)) {
-            if (qsvr.wildcard > 0) {
-                *conn = quic_schedule(svc, &qsvr, iph, mbuf);
-                if (*conn)
-                    RTE_LOG(INFO, IPVS, "schedule new connection from quic cid\n");
-                else {
-                    // Do NOT emit warning log here!
-                    // The DCID in Initial packets are generated randomly by client, which
-                    // doesn't contain valid server address info for success schedule.
-                }
-            }
-        } else {
-            RTE_LOG(WARNING, IPVS, "fail to parse server info from quic mbuf: %s\n",
-                    dpvs_strerror(err));
-        }
-    }
     if (!*conn) {
         *conn = dp_vs_schedule(svc, iph, mbuf, false);
         if (!*conn) {
