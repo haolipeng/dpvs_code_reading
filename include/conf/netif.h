@@ -111,7 +111,6 @@ typedef struct netif_nic_basic_get
     uint16_t ol_tx_ip_csum:1;
     uint16_t ol_tx_tcp_csum:1;
     uint16_t ol_tx_udp_csum:1;
-    uint16_t lldp:1;
     uint16_t ol_tx_fast_free:1;
 } netif_nic_basic_get_t;
 
@@ -249,8 +248,6 @@ typedef struct netif_nic_set {
     uint16_t tc_egress_off:1;
     uint16_t tc_ingress_on:1;
     uint16_t tc_ingress_off:1;
-    uint16_t lldp_on:1;
-    uint16_t lldp_off:1;
 } netif_nic_set_t;
 
 typedef struct netif_bond_set {

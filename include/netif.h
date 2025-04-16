@@ -47,8 +47,7 @@ enum {
     NETIF_PORT_FLAG_TC_EGRESS               = (0x1<<10),
     NETIF_PORT_FLAG_TC_INGRESS              = (0x1<<11),
     NETIF_PORT_FLAG_NO_ARP                  = (0x1<<12),
-    NETIF_PORT_FLAG_LLDP                    = (0x1<<13),
-    NETIF_PORT_FLAG_TX_MBUF_FAST_FREE       = (0x1<<14),
+    NETIF_PORT_FLAG_TX_MBUF_FAST_FREE       = (0x1<<13),
 };
 
 /* max tx/rx queue number for each nic */

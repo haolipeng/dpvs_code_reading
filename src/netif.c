@@ -3540,10 +3540,6 @@ static inline void setup_dev_of_flags(struct netif_port *port)
         port->flag |= NETIF_PORT_FLAG_RX_VLAN_STRIP_OFFLOAD;
     if (port->dev_info.rx_offload_capa & RTE_ETH_RX_OFFLOAD_IPV4_CKSUM)
         port->flag |= NETIF_PORT_FLAG_RX_IP_CSUM_OFFLOAD;
-
-    /* enable lldp on physical port */
-    if (is_physical_port(port->id))
-        port->flag |= NETIF_PORT_FLAG_LLDP;
 }
 
 struct netif_port* netif_port_get(portid_t id)
@@ -4877,8 +4873,6 @@ static int get_port_basic(struct netif_port *port, void **out, size_t *out_len)
         get->ol_tx_tcp_csum = 1;
     if (port->flag & NETIF_PORT_FLAG_TX_UDP_CSUM_OFFLOAD)
         get->ol_tx_udp_csum = 1;
-    if (port->flag & NETIF_PORT_FLAG_LLDP)
-        get->lldp = 1;
     if (port->flag & NETIF_PORT_FLAG_TX_MBUF_FAST_FREE)
         get->ol_tx_fast_free = 1;
 
@@ -5383,11 +5377,6 @@ static int set_port(struct netif_port *port, const netif_nic_set_t *port_cfg)
         port->flag |= NETIF_PORT_FLAG_TC_INGRESS;
     else if (port_cfg->tc_ingress_off)
         port->flag &= (~NETIF_PORT_FLAG_TC_INGRESS);
-
-    if (port_cfg->lldp_on)
-        port->flag |= NETIF_PORT_FLAG_LLDP;
-    else if (port_cfg->lldp_off)
-        port->flag &= (~NETIF_PORT_FLAG_LLDP);
 
     return EDPVS_OK;
 }
