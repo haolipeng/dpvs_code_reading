@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "dpdk.h": "c",
+        "mbuf.h": "c",
+        "string.h": "c",
+        "global_data.h": "c",
+        "common.h": "c",
+        "log.h": "c",
+        "vlan.h": "c",
+        "pidfile.h": "c",
+        "random": "c"
+    }
+}

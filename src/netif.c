@@ -1120,7 +1120,8 @@ static inline void netif_pktmbuf_pool_init(void)
 /* Note: Lockless. pkt_type can only be registered on initialization stage,
  *       and unregistered on cleanup stage. Otherwise uncertain behavior may arise.
  */
-static struct list_head pkt_type_tab[NETIF_PKT_TYPE_TABLE_BUCKETS];
+//无锁,数据包类型是在初始化阶段被注册,在清理阶段被反注册,否则可能出现未定义行为
+static struct list_head pkt_type_tab[NETIF_PKT_TYPE_TABLE_BUCKETS];//哈希表,存储不同类型的数据包的处理器
 
 static inline int pkt_type_tab_hashkey(uint16_t type)
 {
@@ -1134,6 +1135,7 @@ static inline void netif_pkt_type_tab_init(void)
         INIT_LIST_HEAD(&pkt_type_tab[i]);
 }
 
+//不同协议模块注册自己的数据包处理器
 int netif_register_pkt(struct pkt_type *pt)
 {
     struct pkt_type *cur;
@@ -1151,6 +1153,7 @@ int netif_register_pkt(struct pkt_type *pt)
     return EDPVS_OK;
 }
 
+//支持注销已注册的数据包处理器
 int netif_unregister_pkt(struct pkt_type *pt)
 {
     struct pkt_type *cur;
@@ -1168,11 +1171,11 @@ int netif_unregister_pkt(struct pkt_type *pt)
     return EDPVS_NOTEXIST;
 }
 
+//根据以太网类型快速查找对应的处理器
 static struct pkt_type *pkt_type_get(__be16 type, struct netif_port *port)
 {
     struct pkt_type *pt;
     int hash;
-
     
     hash = pkt_type_tab_hashkey(type);
     list_for_each_entry(pt, &pkt_type_tab[hash], list) {
@@ -1459,6 +1462,7 @@ static void lcore_role_init(void)
             /* invalidate the disabled cores */
             g_lcore_role[cid] = LCORE_ROLE_MAX;
 
+    //获取主核逻辑核心id，并将其角色设置为LCORE_ROLE_MASTER
     cid = rte_get_main_lcore();
 
     assert(g_lcore_role[cid] == LCORE_ROLE_IDLE);
@@ -2692,14 +2696,14 @@ static struct dpvs_lcore_job_array netif_jobs[NETIF_JOB_MAX] = {
         .role = LCORE_ROLE_FWD_WORKER,
         .job.name = "recv_fwd",
         .job.type = LCORE_JOB_LOOP,
-        .job.func = lcore_job_recv_fwd,
+        .job.func = lcore_job_recv_fwd,//收包和转发
     },
 
     [1] = {
         .role = LCORE_ROLE_FWD_WORKER,
         .job.name = "xmit",
         .job.type = LCORE_JOB_LOOP,
-        .job.func = lcore_job_xmit,
+        .job.func = lcore_job_xmit,//发送数据包
     },
 
     [2] = {
